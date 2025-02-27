@@ -3,12 +3,12 @@ package com.example.demo.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -16,32 +16,50 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-            .httpBasic(httpBasic -> {}); // ✅ Latest Spring Security 6.1+
+        String activeProfile = System.getenv("SPRING_PROFILES_ACTIVE"); // Get active profile
+
+        if ("dev".equals(activeProfile)) {
+            // 🔹 Development Mode (No Security)
+            http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+        } else {
+            // 🔹 Staging & Production Security Rules
+            http
+                .authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/public/**").permitAll() // Open routes
+                    .requestMatchers("/admin/**").hasRole("ADMIN") // Admin-only routes
+                    .anyRequest().authenticated()) // Secure all other routes
+                .httpBasic(httpBasic -> {}) // Use Basic Authentication
+                .csrf(csrf -> csrf.disable()); // Disable CSRF for APIs
+        }
 
         return http.build();
     }
 
     @Bean
     public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        // ✅ Ensure a default password is set
-        String password = System.getenv("STAGING_PASS");
+        String password = System.getenv("USER_PASSWORD"); // Fetch password from env
+
         if (password == null || password.isBlank()) {
-            password = "1234"; // ✅ Set a fallback password
+            password = "defaultPassword"; // Fallback password for testing
         }
 
-        UserDetails user = User.builder()
-            .username("staging")
-            .password(passwordEncoder.encode(password)) // ✅ Encrypt the password
-            .roles("USER")
+        UserDetails admin = User.builder()
+            .username("admin")
+            .password(passwordEncoder.encode(password))
+            .roles("ADMIN") // Admin role
             .build();
 
-        return new InMemoryUserDetailsManager(user);
+        UserDetails user = User.builder()
+            .username("user")
+            .password(passwordEncoder.encode("user123"))
+            .roles("USER") // Regular user role
+            .build();
+
+        return new InMemoryUserDetailsManager(admin, user);
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(); // 🔒 Use BCrypt for hashing passwords
     }
 }
