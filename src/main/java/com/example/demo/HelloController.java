@@ -10,6 +10,6 @@ public class HelloController {
 
     @GetMapping
     public String hello() {
-        return "Hello, Heroku from Spring Boot! 🚀🚀🚀🚀🚀🚀 26.02.2025, deploy with Github v1-stg";
+        return "Hello, Heroku from Spring Boot! 🚀🚀🚀🚀🚀🚀 27.02.2025, deploy with Github tag v1";
     }
 }
